@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ashish Puri</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* Reset & full viewport */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #ffffff;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    /* Circular container with stick-figure offset */
+    #circular-container {
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 600px;
+      height: 600px;
+      border: 4px solid #ccc;
+      border-radius: 50%;
+      position: relative;
+      background: #f9f9f9;
+      margin-top: 30px; /* shift down by half the stick figure height */
+    }
+
+    /* Stick-man home link */
+    .home-link {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      z-index: 3;
+      text-decoration: none;
+    }
+    .home-link svg {
+      display: block;
+      width: 40px;
+      height: 60px;
+    }
+
+    /* Ball styling */
+    .ball {
+      position: absolute;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-transform: lowercase;
+      text-align: center;
+      white-space: normal;
+      will-change: transform;
+      color: #fff;
+      text-decoration: none;
+      z-index: 1;
+      box-sizing: border-box;
+      padding: 10px;
+      cursor: pointer;        /* show a pointer on hover anywhere */
+      text-decoration: none;  /* remove any default link underline */
+    }
+    .ball.prominent {
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div id="circular-container">
+    <a href="index.html" class="home-link" title="Home">
+      <svg viewBox="0 0 40 60" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="10" r="8" stroke="#333" stroke-width="2" fill="none" />
+        <line x1="20" y1="18" x2="20" y2="40" stroke="#333" stroke-width="2" />
+        <line x1="20" y1="22" x2="10" y2="30" stroke="#333" stroke-width="2" />
+        <line x1="20" y1="22" x2="30" y2="30" stroke="#333" stroke-width="2" />
+        <line x1="20" y1="40" x2="10" y2="55" stroke="#333" stroke-width="2" />
+        <line x1="20" y1="40" x2="30" y2="55" stroke="#333" stroke-width="2" />
+      </svg>
+    </a>
+  </div>
+
+  <script>
+    // Page links configuration—add more entries to grow
+    const pages = [
+      { label: 'I am Ashish Puri', href: '#', color: '#f4a261', prominent: true },
+      { label: 'about',   href: 'about.html',   color: '#e63946' },
+      { label: 'places',  href: 'places.html',  color: '#457b9d' },
+      { label: 'thoughts', href: 'thoughts.html', color: '#2a9d8f' }
+    ];
+
+    const container = document.getElementById('circular-container');
+    const R = container.clientWidth / 2;
+    const gravity = 0.2;
+    const damping = 1;        // perfectly elastic
+    const padding = 20;
+    const scale = 1.4;
+
+    class Ball {
+      constructor({ label, href, color, prominent }) {
+        this.el = document.createElement('a');
+        this.el.className = 'ball';
+        if (prominent) this.el.classList.add('prominent');
+        this.el.href = href;
+        this.el.innerHTML = label.toLowerCase().split(' ').join('<br/>');
+        this.el.style.backgroundColor = color;
+        container.appendChild(this.el);
+
+        // measure size and set fixed diameter
+        const measuredWidth = this.el.scrollWidth;
+        const measuredHeight = this.el.scrollHeight;
+        const base = Math.max(measuredWidth, measuredHeight);
+        const diameter = (base + padding) * scale;
+
+        this.r = diameter / 2;
+        this.el.style.width = `${diameter}px`;
+        this.el.style.height = `${diameter}px`;
+        const fontSize = diameter / 6;
+        this.el.style.fontSize = `${fontSize}px`;
+
+        // initial position
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * (R - this.r);
+        this.x = R + Math.cos(angle) * dist;
+        this.y = R + Math.sin(angle) * dist;
+        this.vx = (Math.random() - 0.5) * 4;
+        this.vy = (Math.random() - 0.5) * 4;
+      }
+
+      update() {
+        // symplectic (leapfrog) integration to conserve energy
+        this.vy += gravity * 0.5;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // bounce off inner wall (perfectly elastic)
+        const dx = this.x - R;
+        const dy = this.y - R;
+        const dist = Math.hypot(dx, dy);
+        if (dist + this.r > R) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const dot = this.vx * nx + this.vy * ny;
+          this.vx = this.vx - 2 * dot * nx;
+          this.vy = this.vy - 2 * dot * ny;
+          // correct overlap
+          const overlap = dist + this.r - R;
+          this.x -= nx * overlap;
+          this.y -= ny * overlap;
+        }
+
+        this.vy += gravity * 0.5;
+      }
+    }
+
+    const balls = pages.map(cfg => new Ball(cfg));
+
+    // 1) Make sure every ball shows the pointer
+    balls.forEach(b => {
+      b.el.style.cursor = 'pointer';
+    });
+
+    // 2) Delegate clicks so clicking anywhere on the ball goes to its href
+    container.addEventListener('click', (e) => {
+      const link = e.target.closest('.ball');
+      if (link) {
+        // navigate to the ball’s URL
+        window.location.href = link.href;
+      }
+    });
+
+    function step() {
+      balls.forEach(b => b.update());
+
+      // ball-ball collisions remain perfectly elastic
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const b1 = balls[i];
+          const b2 = balls[j];
+          const dx = b1.x - b2.x;
+          const dy = b1.y - b2.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < b1.r + b2.r) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const p = (2 * ((b1.vx - b2.vx) * nx + (b1.vy - b2.vy) * ny)) / 2;
+            b1.vx -= p * nx;
+            b1.vy -= p * ny;
+            b2.vx += p * nx;
+            b2.vy += p * ny;
+            const overlap = b1.r + b2.r - dist;
+            b1.x += nx * overlap / 2;
+            b1.y += ny * overlap / 2;
+            b2.x -= nx * overlap / 2;
+            b2.y -= ny * overlap / 2;
+          }
+        }
+      }
+
+      balls.forEach(b => {
+        b.el.style.transform = `translate(${b.x - b.r}px, ${b.y - b.r}px)`;
+      });
+      requestAnimationFrame(step);
+    }
+
+    requestAnimationFrame(step);
+  </script>
+</body>
+</html>
